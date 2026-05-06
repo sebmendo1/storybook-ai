@@ -2,7 +2,10 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig([
   {
-    entry: { index: 'src/main/index.ts' },
+    entry: {
+      index: 'src/main/index.ts',
+      'storybook-worker': 'src/main/storybook-worker.ts',
+    },
     outDir: 'dist/main',
     format: ['cjs'],
     target: 'node22',

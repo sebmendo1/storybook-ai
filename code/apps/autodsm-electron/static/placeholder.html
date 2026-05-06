@@ -13,7 +13,11 @@
         height: 100%;
         background: #0f0f12;
         color: #e7e7ea;
-        font: 13px/1.4 -apple-system, system-ui, Inter, sans-serif;
+        font:
+          13px/1.4 -apple-system,
+          system-ui,
+          Inter,
+          sans-serif;
       }
       .sidebar {
         width: 320px;
@@ -21,6 +25,9 @@
         padding: 16px;
         box-sizing: border-box;
         border-right: 1px solid #1f1f24;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
       }
       h1 {
         margin: 0 0 4px;
@@ -30,11 +37,11 @@
         color: #9b8cff;
       }
       p {
-        margin: 8px 0;
+        margin: 4px 0;
         color: #a0a0aa;
       }
       button {
-        margin-top: 12px;
+        margin-top: 4px;
         padding: 8px 14px;
         background: #1c1c22;
         color: #e7e7ea;
@@ -49,7 +56,6 @@
       }
       .badge {
         display: inline-block;
-        margin-top: 16px;
         padding: 3px 8px;
         border-radius: 999px;
         background: #1c1c22;
@@ -57,37 +63,90 @@
         color: #a0a0aa;
         font-size: 11px;
       }
+      .badge.ok {
+        border-color: #3a4a36;
+        color: #b6e0a3;
+      }
+      .badge.err {
+        border-color: #4a2f2f;
+        color: #f6a89c;
+      }
+      dl {
+        margin: 0;
+        font-size: 12px;
+      }
+      dt {
+        color: #6e6e78;
+        margin-top: 6px;
+      }
+      dd {
+        margin: 0;
+        color: #d0d0d8;
+        word-break: break-all;
+      }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
     <div class="sidebar">
       <h1>AutoDSM</h1>
-      <p>Sprint 1 — Storybook Runtime Bridge PoC.</p>
-      <p>Pick a folder containing a Storybook project (or a React/Next repo without one) to boot a preview on the right.</p>
+      <p>Sprint 2 — detection & auto-config.</p>
+      <p>Pick a folder containing a Storybook project, or any React/Next repo without one.</p>
       <button id="open">Open Folder</button>
-      <div class="badge" id="status">No project loaded</div>
+      <span class="badge" id="status">No project loaded</span>
+      <dl id="details" class="hidden">
+        <dt>Repo</dt>
+        <dd id="repo"></dd>
+        <dt>Framework</dt>
+        <dd id="framework"></dd>
+        <dt>Storybook</dt>
+        <dd id="sb"></dd>
+        <dt>Preview</dt>
+        <dd id="preview"></dd>
+      </dl>
     </div>
     <script>
       const open = document.getElementById('open');
       const status = document.getElementById('status');
+      const details = document.getElementById('details');
+      const elRepo = document.getElementById('repo');
+      const elFramework = document.getElementById('framework');
+      const elSb = document.getElementById('sb');
+      const elPreview = document.getElementById('preview');
+
+      const setStatus = (msg, kind) => {
+        status.textContent = msg;
+        status.className = `badge${kind ? ` ${kind}` : ''}`;
+      };
 
       open.addEventListener('click', async () => {
-        status.textContent = 'Opening folder picker…';
+        setStatus('Opening folder picker…');
         try {
           await window.autodsm.openFolder();
         } catch (err) {
-          status.textContent = `Error: ${err.message ?? err}`;
+          setStatus(`Error: ${err.message ?? err}`, 'err');
         }
       });
 
       window.autodsm.onProjectOpened((payload) => {
-        status.textContent = `Loaded ${payload.repoRoot.split('/').pop()} · ${payload.framework}`;
+        details.classList.remove('hidden');
+        elRepo.textContent = payload.repoRoot;
+        elFramework.textContent = payload.framework;
+        elSb.textContent = payload.hasExistingStorybook
+          ? 'existing .storybook/'
+          : 'AutoDSM-managed (.autodsm/storybook/)';
+        elPreview.textContent = 'starting…';
+        setStatus(`Booting ${payload.framework}…`);
       });
       window.autodsm.onPreviewStarted((payload) => {
-        status.textContent = `Preview at ${payload.address}`;
+        elPreview.textContent = payload.address;
+        setStatus('Preview ready', 'ok');
       });
       window.autodsm.onPreviewError((payload) => {
-        status.textContent = `Preview error: ${payload.message}`;
+        elPreview.textContent = '—';
+        setStatus(`Preview error: ${payload.message}`, 'err');
       });
     </script>
   </body>

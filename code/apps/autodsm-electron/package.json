@@ -9,6 +9,7 @@
   "scripts": {
     "build:main": "tsup",
     "dev": "tsup --watch --onSuccess \"electron .\"",
+    "dry-run": "node ./scripts/dry-run.ts",
     "start": "electron ."
   },
   "dependencies": {

@@ -1,3 +1,11 @@
-export { detectFramework } from './detect-framework.ts';
-export { detectStorybook } from './detect-storybook.ts';
-export { materializeConfig } from './materialize-config.ts';
+export {
+  detectFramework,
+  detectFrameworkSignature,
+  type FrameworkSignature,
+} from './detect-framework.ts';
+export { detectStorybook, type StorybookDetection } from './detect-storybook.ts';
+export {
+  materializeConfig,
+  ensureGitignore,
+  type MaterializeResult,
+} from './materialize-config.ts';
