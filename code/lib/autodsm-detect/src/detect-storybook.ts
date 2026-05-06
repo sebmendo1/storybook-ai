@@ -1,7 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'pathe';
-
-const MAIN_EXTENSIONS = ['ts', 'mts', 'cts', 'js', 'mjs', 'cjs'];
+import { getInterpretedFile } from 'storybook/internal/common';
 
 export type StorybookDetection = {
   hasExistingStorybook: boolean;
@@ -15,12 +14,10 @@ export const detectStorybook = (repoRoot: string): StorybookDetection => {
     return { hasExistingStorybook: false, configDir, mainPath: null };
   }
 
-  for (const ext of MAIN_EXTENSIONS) {
-    const candidate = join(configDir, `main.${ext}`);
-    if (existsSync(candidate)) {
-      return { hasExistingStorybook: true, configDir, mainPath: candidate };
-    }
-  }
-
-  return { hasExistingStorybook: false, configDir, mainPath: null };
+  const mainPath = getInterpretedFile(join(configDir, 'main')) ?? null;
+  return {
+    hasExistingStorybook: Boolean(mainPath),
+    configDir,
+    mainPath,
+  };
 };
