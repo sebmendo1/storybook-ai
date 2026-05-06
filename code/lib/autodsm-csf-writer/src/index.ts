@@ -27,3 +27,16 @@ export {
 export { generateStub, type GenerateStubInput, type GenerateStubResult } from './generate-stub.ts';
 
 export { inferDefaultArgs, inferArgFor, type InferredArg } from './infer/args.ts';
+
+export {
+  detectNextRouterMode,
+  buildNextParameters,
+  type NextRouterMode,
+} from './decorators/next.ts';
+
+export {
+  detectProvider,
+  buildProviderImport,
+  buildProviderDecoratorEntry,
+  type DetectedProvider,
+} from './decorators/react.ts';

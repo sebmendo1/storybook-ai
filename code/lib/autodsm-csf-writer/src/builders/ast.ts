@@ -56,6 +56,10 @@ export type GenerateMetaInput = {
   title: string;
   framework: 'react' | 'next';
   parsedProps: Record<string, ParsedProp>;
+  /** Optional extra parameters to splice into the meta object literal. */
+  extraParameters?: t.ObjectProperty[];
+  /** Optional decorators array entries (already-built expression nodes). */
+  decorators?: t.Expression[];
 };
 
 export const generateImports = (input: GenerateMetaInput): t.Statement[] => {
@@ -100,6 +104,16 @@ export const generateMetaFromComponent = (input: GenerateMetaInput): t.Statement
   }
   if (argTypes.properties.length > 0) {
     metaProperties.push(t.objectProperty(t.identifier('argTypes'), argTypes));
+  }
+  if (input.extraParameters && input.extraParameters.length > 0) {
+    for (const prop of input.extraParameters) {
+      metaProperties.push(prop);
+    }
+  }
+  if (input.decorators && input.decorators.length > 0) {
+    metaProperties.push(
+      t.objectProperty(t.identifier('decorators'), t.arrayExpression(input.decorators))
+    );
   }
   metaProperties.push(
     t.objectProperty(
