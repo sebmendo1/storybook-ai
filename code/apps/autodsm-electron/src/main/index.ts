@@ -5,7 +5,18 @@ import { detectFramework, detectStorybook, materializeConfig } from '@autodsm/de
 import { extractTokens, scanRepo, type DiscoveredComponent } from '@autodsm/indexer';
 import { generateStub } from '@autodsm/csf-writer';
 import {
+  appendEntry,
+  detectAuth,
+  newSessionId,
+  spawnClaude,
+  type ClaudeSubprocessHandle,
+} from '@autodsm/agent';
+import {
   IPC,
+  type AgentAuthStatusPayload,
+  type AgentDonePayload,
+  type AgentQueryPayload,
+  type AgentTurnPayload,
   type GenerateStubRequestPayload,
   type IndexerResultPayload,
   type ProjectOpenedPayload,
@@ -27,6 +38,8 @@ let host: StorybookHostHandle | null = null;
 let activeRepoRoot: string | null = null;
 let activeFramework: SupportedFramework | 'unknown' = 'unknown';
 let lastComponents: DiscoveredComponent[] = [];
+let activeAgent: ClaudeSubprocessHandle | null = null;
+let activeSessionId: string | null = null;
 
 const SIDEBAR_WIDTH = 320;
 
@@ -182,6 +195,88 @@ const runIndexer = async (repoRoot: string): Promise<void> => {
 };
 
 ipcMain.handle(IPC.OPEN_FOLDER, openFolderAndBoot);
+
+ipcMain.handle(IPC.AGENT_AUTH_STATUS, async (): Promise<AgentAuthStatusPayload> => {
+  const status = await detectAuth();
+  return { kind: status.kind, readable: status.readable, version: status.version };
+});
+
+ipcMain.handle(IPC.AGENT_QUERY, async (_event, raw: AgentQueryPayload) => {
+  if (!activeRepoRoot) return;
+  if (activeAgent) activeAgent.abort();
+  activeSessionId = activeSessionId ?? newSessionId();
+
+  await appendEntry(activeRepoRoot, activeSessionId, {
+    type: 'user',
+    ts: Date.now(),
+    text: raw.prompt,
+  });
+
+  const status = await detectAuth();
+  if (status.kind === 'none' || status.kind === 'api-key') {
+    const turn: AgentTurnPayload = {
+      type: 'error',
+      message:
+        status.kind === 'none'
+          ? 'No Claude credentials. Run `claude login` to use AutoDSM agentic features.'
+          : 'API-key fallback is not implemented yet (Sprint 6 stub).',
+    };
+    mainWindow?.webContents.send(IPC.AGENT_TURN, turn);
+    const done: AgentDonePayload = { code: 1, signal: null };
+    mainWindow?.webContents.send(IPC.AGENT_DONE, done);
+    return;
+  }
+
+  activeAgent = spawnClaude({ prompt: raw.prompt, cwd: activeRepoRoot });
+  const sessionId = activeSessionId;
+  const repoRoot = activeRepoRoot;
+
+  void (async () => {
+    for await (const event of activeAgent!.events) {
+      let turn: AgentTurnPayload | null = null;
+      if (event.type === 'text') turn = { type: 'text', text: event.text };
+      else if (event.type === 'tool_use')
+        turn = { type: 'tool_use', name: event.name, input: event.input };
+      else if (event.type === 'tool_result')
+        turn = { type: 'tool_result', toolUseId: event.tool_use_id, content: event.content };
+      else if (event.type === 'error') turn = { type: 'error', message: event.message };
+      if (turn) {
+        mainWindow?.webContents.send(IPC.AGENT_TURN, turn);
+        const ts = Date.now();
+        if (turn.type === 'text') {
+          await appendEntry(repoRoot, sessionId, { type: 'assistant_text', ts, text: turn.text });
+        } else if (turn.type === 'tool_use') {
+          await appendEntry(repoRoot, sessionId, {
+            type: 'tool_use',
+            ts,
+            name: turn.name,
+            input: turn.input,
+          });
+        } else if (turn.type === 'tool_result') {
+          await appendEntry(repoRoot, sessionId, {
+            type: 'tool_result',
+            ts,
+            toolUseId: turn.toolUseId,
+            content: turn.content,
+          });
+        } else {
+          await appendEntry(repoRoot, sessionId, { type: 'error', ts, message: turn.message });
+        }
+      }
+    }
+    const result = await activeAgent!.done;
+    const done: AgentDonePayload = { code: result.code, signal: result.signal };
+    mainWindow?.webContents.send(IPC.AGENT_DONE, done);
+    activeAgent = null;
+  })();
+});
+
+ipcMain.handle(IPC.AGENT_ABORT, async () => {
+  if (activeAgent) {
+    activeAgent.abort();
+    activeAgent = null;
+  }
+});
 
 ipcMain.handle(IPC.GENERATE_STUB, async (_event, raw: GenerateStubRequestPayload) => {
   if (!activeRepoRoot) return;

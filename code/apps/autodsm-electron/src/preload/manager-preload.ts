@@ -24,6 +24,19 @@ const api = {
     return () => ipcRenderer.removeListener(IPC.INDEXER_RESULT, listener);
   },
   generateStub: (componentId: string) => ipcRenderer.invoke(IPC.GENERATE_STUB, { componentId }),
+  getAuthStatus: () => ipcRenderer.invoke(IPC.AGENT_AUTH_STATUS),
+  agentQuery: (prompt: string) => ipcRenderer.invoke(IPC.AGENT_QUERY, { prompt }),
+  agentAbort: () => ipcRenderer.invoke(IPC.AGENT_ABORT),
+  onAgentTurn: (cb: (payload: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => cb(payload);
+    ipcRenderer.on(IPC.AGENT_TURN, listener);
+    return () => ipcRenderer.removeListener(IPC.AGENT_TURN, listener);
+  },
+  onAgentDone: (cb: (payload: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => cb(payload);
+    ipcRenderer.on(IPC.AGENT_DONE, listener);
+    return () => ipcRenderer.removeListener(IPC.AGENT_DONE, listener);
+  },
   onStubGenerated: (cb: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => cb(payload);
     ipcRenderer.on(IPC.STUB_GENERATED, listener);
