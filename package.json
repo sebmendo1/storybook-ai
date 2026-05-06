@@ -6,6 +6,7 @@
     "packages": [
       "code",
       "code/addons/*",
+      "code/apps/*",
       "code/builders/*",
       "code/core",
       "code/frameworks/*",

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AutoDSM</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0f0f12;
+        color: #e7e7ea;
+        font: 13px/1.4 -apple-system, system-ui, Inter, sans-serif;
+      }
+      .sidebar {
+        width: 320px;
+        height: 100vh;
+        padding: 16px;
+        box-sizing: border-box;
+        border-right: 1px solid #1f1f24;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #9b8cff;
+      }
+      p {
+        margin: 8px 0;
+        color: #a0a0aa;
+      }
+      button {
+        margin-top: 12px;
+        padding: 8px 14px;
+        background: #1c1c22;
+        color: #e7e7ea;
+        border: 1px solid #2a2a32;
+        border-radius: 6px;
+        cursor: pointer;
+        font: inherit;
+      }
+      button:hover {
+        border-color: #9b8cff;
+        color: #c0b3ff;
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 16px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #1c1c22;
+        border: 1px solid #2a2a32;
+        color: #a0a0aa;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <h1>AutoDSM</h1>
+      <p>Sprint 1 — Storybook Runtime Bridge PoC.</p>
+      <p>Pick a folder containing a Storybook project (or a React/Next repo without one) to boot a preview on the right.</p>
+      <button id="open">Open Folder</button>
+      <div class="badge" id="status">No project loaded</div>
+    </div>
+    <script>
+      const open = document.getElementById('open');
+      const status = document.getElementById('status');
+
+      open.addEventListener('click', async () => {
+        status.textContent = 'Opening folder picker…';
+        try {
+          await window.autodsm.openFolder();
+        } catch (err) {
+          status.textContent = `Error: ${err.message ?? err}`;
+        }
+      });
+
+      window.autodsm.onProjectOpened((payload) => {
+        status.textContent = `Loaded ${payload.repoRoot.split('/').pop()} · ${payload.framework}`;
+      });
+      window.autodsm.onPreviewStarted((payload) => {
+        status.textContent = `Preview at ${payload.address}`;
+      });
+      window.autodsm.onPreviewError((payload) => {
+        status.textContent = `Preview error: ${payload.message}`;
+      });
+    </script>
+  </body>
+</html>

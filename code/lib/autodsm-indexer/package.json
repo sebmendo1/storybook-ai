@@ -1,0 +1,23 @@
+{
+  "name": "@autodsm/indexer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Component + token discovery. ts-morph traversal for components, react-docgen for prop inference, CSS variable + Tailwind + theme-object scanners for tokens.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "code": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@autodsm/shared": "workspace:*",
+    "pathe": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

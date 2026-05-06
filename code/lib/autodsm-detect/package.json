@@ -1,0 +1,23 @@
+{
+  "name": "@autodsm/detect",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Repo + framework detection. Materializes .autodsm/storybook/main.ts when the user's repo has no Storybook config.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "code": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@autodsm/shared": "workspace:*",
+    "pathe": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

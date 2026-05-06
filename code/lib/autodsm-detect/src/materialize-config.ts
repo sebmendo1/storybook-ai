@@ -1,0 +1,69 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'pathe';
+import {
+  AUTODSM_STORYBOOK_DIR,
+  GITIGNORE_LINE,
+  type SupportedFramework,
+} from '@autodsm/shared';
+
+const FRAMEWORK_PACKAGE: Record<SupportedFramework, string> = {
+  'react-vite': '@storybook/react-vite',
+  'react-webpack5': '@storybook/react-webpack5',
+  nextjs: '@storybook/nextjs',
+  'nextjs-vite': '@storybook/nextjs-vite',
+};
+
+const renderMain = (framework: SupportedFramework): string => `import type { StorybookConfig } from '${FRAMEWORK_PACKAGE[framework]}';
+
+const config: StorybookConfig = {
+  framework: '${FRAMEWORK_PACKAGE[framework]}',
+  stories: [
+    '../../**/*.stories.@(ts|tsx|js|jsx)',
+    '../../.autodsm/generated-stories/**/*.stories.@(ts|tsx)',
+  ],
+  addons: [],
+};
+
+export default config;
+`;
+
+export type MaterializeResult = {
+  configDir: string;
+  mainPath: string;
+  created: boolean;
+};
+
+export const materializeConfig = async (
+  repoRoot: string,
+  framework: SupportedFramework,
+): Promise<MaterializeResult> => {
+  const configDir = join(repoRoot, AUTODSM_STORYBOOK_DIR);
+  const mainPath = join(configDir, 'main.ts');
+
+  if (existsSync(mainPath)) {
+    return { configDir, mainPath, created: false };
+  }
+
+  await mkdir(dirname(mainPath), { recursive: true });
+  await writeFile(mainPath, renderMain(framework), 'utf-8');
+  await ensureGitignore(repoRoot);
+
+  return { configDir, mainPath, created: true };
+};
+
+const ensureGitignore = async (repoRoot: string): Promise<void> => {
+  const gitignorePath = join(repoRoot, '.gitignore');
+  if (!existsSync(gitignorePath)) {
+    await writeFile(gitignorePath, `${GITIGNORE_LINE}\n`, 'utf-8');
+    return;
+  }
+
+  const current = await readFile(gitignorePath, 'utf-8');
+  const lines = current.split('\n').map((l) => l.trim());
+  if (lines.includes(GITIGNORE_LINE) || lines.includes('.autodsm')) {
+    return;
+  }
+  const suffix = current.endsWith('\n') ? '' : '\n';
+  await writeFile(gitignorePath, `${current}${suffix}${GITIGNORE_LINE}\n`, 'utf-8');
+};

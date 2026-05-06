@@ -1,0 +1,28 @@
+{
+  "name": "@autodsm/agent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Auth detection + claude CLI subprocess delegation + per-repo agent sessions. All agentic calls bill against the user's existing Claude Code plan.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "code": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./auth": {
+      "types": "./src/auth/detect.ts",
+      "code": "./src/auth/detect.ts",
+      "default": "./src/auth/detect.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@autodsm/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "typescript": "^5.9.3"
+  }
+}

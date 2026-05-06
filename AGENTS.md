@@ -288,6 +288,68 @@ Avoid `console.log`, `console.warn`, and `console.error` unless the file is isol
 
 These usually start long-running development servers and are the wrong default for agents.
 
+## AutoDSM (Storybook → Electron IDE pivot)
+
+This repo is also the development home of **AutoDSM** — a Storybook-derived
+Electron IDE for component systems. AutoDSM consumes the Storybook packages
+in `code/core`, `code/frameworks/*`, and `code/builders/*` as **library
+dependencies** rather than forking them. Generated stories remain valid CSF
+so users can run plain Storybook outside AutoDSM.
+
+The full plan, sprint roadmap, and PoC verification recipe live at
+`docs/storybook-electron-architecture.md`.
+
+### AutoDSM packages (all `private: true`, scope `@autodsm/*`)
+
+| Path | Role |
+| --- | --- |
+| `code/apps/autodsm-electron` | Electron app shell; hosts Storybook preview in `WebContentsView`. |
+| `code/lib/autodsm-shared` | IPC channel constants, path constants, project/auth types. |
+| `code/lib/autodsm-channels` | `ElectronIPCTransport` for Storybook's `Channel` over Electron IPC. |
+| `code/lib/autodsm-detect` | Framework detection + `.autodsm/storybook/main.ts` materialization. |
+| `code/lib/autodsm-indexer` | Component + token discovery (Sprint 3+). |
+| `code/lib/autodsm-csf-writer` | CSF3 AST authoring for staged stories (Sprint 4+). |
+| `code/lib/autodsm-agent` | Auth detection + `claude` CLI subprocess delegation (Sprint 6+). |
+| `code/addons/autodsm-preset` | Storybook preset auto-injected into materialized configs. |
+
+### AutoDSM-specific dev flows
+
+```bash
+# Install deps (adds electron + tsup at root)
+yarn
+
+# Build the Electron main bundle once
+yarn workspace @autodsm/electron build:main
+
+# Watch + run Electron (auto-rebuilds main on edit)
+yarn workspace @autodsm/electron dev
+
+# Headless dry run of the Storybook Runtime Bridge against a sandbox
+node -e "import('storybook/internal/core-server').then(m => \
+  m.buildDevStandalone({ \
+    configDir: '<abs-sandbox>/.storybook', port: 0, host: '127.0.0.1', \
+    open: false, ci: true, quiet: true, \
+    packageJson: require('<abs-sandbox>/package.json') \
+  }).then(({port, address}) => console.log('UP', port, address)))"
+```
+
+### Authentication for agentic features
+
+AutoDSM uses the user's existing **Claude Code** subscription via subprocess
+delegation to the local `claude` CLI. AutoDSM **must never** read
+`~/.claude/.credentials.json`, the macOS Keychain entry, or any subscription
+OAuth material — Anthropic's TOS prohibits OAuth token extraction by
+third-party apps. Auth precedence: `claude` CLI subscription →
+`ANTHROPIC_API_KEY` → `CLAUDE_CODE_OAUTH_TOKEN` →
+`CLAUDE_CODE_USE_BEDROCK`/`_USE_VERTEX`.
+
+### Generated stories
+
+Default location: `<repoRoot>/.autodsm/generated-stories/...`. AutoDSM
+appends `.autodsm/` to the user's `.gitignore` once on first materialization.
+A "Commit to repo" action in the AutoDSM UI promotes a staged story to be
+colocated with its component.
+
 ## Maintenance Rules For Agents
 
 - Use this file as the canonical instruction source

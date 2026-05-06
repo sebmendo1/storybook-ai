@@ -1,0 +1,28 @@
+{
+  "name": "@autodsm/preset",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Storybook preset auto-injected by AutoDSM. Registers a custom indexer for .autodsm/generated-stories/ and previewAnnotations for token + provider decorators.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/preset.ts",
+      "code": "./src/preset.ts",
+      "default": "./src/preset.ts"
+    },
+    "./preset": {
+      "types": "./src/preset.ts",
+      "code": "./src/preset.ts",
+      "default": "./src/preset.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@autodsm/shared": "workspace:*",
+    "storybook": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
