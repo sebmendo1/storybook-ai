@@ -18,6 +18,11 @@ const api = {
     ipcRenderer.on(IPC.PREVIEW_ERROR, listener);
     return () => ipcRenderer.removeListener(IPC.PREVIEW_ERROR, listener);
   },
+  onIndexerResult: (cb: (payload: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => cb(payload);
+    ipcRenderer.on(IPC.INDEXER_RESULT, listener);
+    return () => ipcRenderer.removeListener(IPC.INDEXER_RESULT, listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('autodsm', api);

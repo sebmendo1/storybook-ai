@@ -21,7 +21,8 @@
     "@autodsm/preset": "workspace:*",
     "@autodsm/shared": "workspace:*",
     "pathe": "^2.0.0",
-    "storybook": "workspace:*"
+    "storybook": "workspace:*",
+    "tinyglobby": "^0.2.13"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",
