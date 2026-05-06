@@ -79,6 +79,10 @@
         border-color: #4a2f2f;
         color: #f6a89c;
       }
+      .badge.purple {
+        border-color: #2e2456;
+        color: #c0b3ff;
+      }
       dl {
         margin: 0;
         font-size: 12px;
@@ -153,6 +157,59 @@
         font-size: 11px;
         color: #6e6e78;
       }
+      .agent {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #1f1f24;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .agent-transcript {
+        max-height: 240px;
+        overflow-y: auto;
+        font-size: 12px;
+        background: #16161c;
+        border-radius: 6px;
+        padding: 8px;
+      }
+      .agent-turn {
+        margin-bottom: 6px;
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
+      .agent-turn.user {
+        background: #2e2456;
+        color: #c0b3ff;
+      }
+      .agent-turn.assistant {
+        background: #1c1c22;
+        color: #e7e7ea;
+      }
+      .agent-turn.tool {
+        background: #1a2a1a;
+        color: #b6e0a3;
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+      }
+      .agent-turn.error {
+        background: #2a1a1a;
+        color: #f6a89c;
+      }
+      .agent input {
+        width: 100%;
+        padding: 6px 8px;
+        background: #1c1c22;
+        color: #e7e7ea;
+        border: 1px solid #2a2a32;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font: inherit;
+      }
+      .agent input:focus {
+        outline: none;
+        border-color: #9b8cff;
+      }
       .hidden {
         display: none;
       }
@@ -161,9 +218,10 @@
   <body>
     <div class="sidebar">
       <h1>AutoDSM</h1>
-      <p>Sprint 3 — indexer & components panel.</p>
+      <p>Sprint 6 — IPC + auth + agent runtime.</p>
       <button id="open">Open Folder</button>
       <span class="badge" id="status">No project loaded</span>
+      <span class="badge" id="auth-badge">Auth: probing…</span>
 
       <dl id="details" class="hidden">
         <dt>Repo</dt>
@@ -182,10 +240,17 @@
         <h2>Tokens <span class="stats" id="token-stats"></span></h2>
         <p class="stats" id="token-summary"></p>
       </div>
+
+      <div class="agent" id="agent-section">
+        <h2>Agent <span class="stats" id="agent-status"></span></h2>
+        <div class="agent-transcript" id="agent-transcript"></div>
+        <input id="agent-input" type="text" placeholder="Ask the agent…" />
+      </div>
     </div>
     <script>
       const open = document.getElementById('open');
       const status = document.getElementById('status');
+      const authBadge = document.getElementById('auth-badge');
       const details = document.getElementById('details');
       const elRepo = document.getElementById('repo');
       const elFramework = document.getElementById('framework');
@@ -196,10 +261,34 @@
       const componentStats = document.getElementById('component-stats');
       const tokenStats = document.getElementById('token-stats');
       const tokenSummary = document.getElementById('token-summary');
+      const agentTranscript = document.getElementById('agent-transcript');
+      const agentInput = document.getElementById('agent-input');
+      const agentStatus = document.getElementById('agent-status');
 
       const setStatus = (msg, kind) => {
         status.textContent = msg;
         status.className = `badge${kind ? ` ${kind}` : ''}`;
+      };
+
+      const setAuthBadge = (auth) => {
+        const ok = auth.kind !== 'none';
+        authBadge.textContent = `Auth: ${auth.readable}`;
+        authBadge.className = `badge ${
+          auth.kind === 'subscription' || auth.kind === 'oauth-token'
+            ? 'ok'
+            : auth.kind === 'none'
+              ? 'err'
+              : 'purple'
+        }`;
+        agentInput.disabled = !ok;
+      };
+
+      const appendTurn = (kind, text) => {
+        const div = document.createElement('div');
+        div.className = `agent-turn ${kind}`;
+        div.textContent = text;
+        agentTranscript.appendChild(div);
+        agentTranscript.scrollTop = agentTranscript.scrollHeight;
       };
 
       open.addEventListener('click', async () => {
@@ -231,7 +320,6 @@
         elPreview.textContent = payload.address;
         setStatus('Preview ready', 'ok');
       });
-
       window.autodsm.onPreviewError((payload) => {
         elPreview.textContent = '—';
         setStatus(`Preview error: ${payload.message}`, 'err');
@@ -308,6 +396,40 @@
       });
       window.autodsm.onStubError((payload) => {
         setStatus(`Stub error: ${payload.message}`, 'err');
+      });
+
+      // Agent panel.
+      const refreshAuth = async () => {
+        const auth = await window.autodsm.getAuthStatus();
+        setAuthBadge(auth);
+      };
+      refreshAuth();
+
+      agentInput.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        const prompt = agentInput.value.trim();
+        if (!prompt) return;
+        agentInput.value = '';
+        appendTurn('user', prompt);
+        agentStatus.textContent = '…';
+        try {
+          await window.autodsm.agentQuery(prompt);
+        } catch (err) {
+          appendTurn('error', err.message ?? String(err));
+          agentStatus.textContent = 'error';
+        }
+      });
+
+      window.autodsm.onAgentTurn((payload) => {
+        if (payload.type === 'text') appendTurn('assistant', payload.text);
+        else if (payload.type === 'tool_use')
+          appendTurn('tool', `→ ${payload.name}(${JSON.stringify(payload.input)})`);
+        else if (payload.type === 'tool_result')
+          appendTurn('tool', `← ${JSON.stringify(payload.content).slice(0, 120)}`);
+        else if (payload.type === 'error') appendTurn('error', payload.message);
+      });
+      window.autodsm.onAgentDone((payload) => {
+        agentStatus.textContent = `done (${payload.code ?? '?'})`;
       });
     </script>
   </body>

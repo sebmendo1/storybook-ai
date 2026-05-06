@@ -9,6 +9,9 @@ export const IPC = {
   GENERATE_STUB: 'autodsm:generate-stub',
   STUB_GENERATED: 'autodsm:stub-generated',
   STUB_ERROR: 'autodsm:stub-error',
+  AGENT_QUERY: 'autodsm:agent:query',
+  AGENT_ABORT: 'autodsm:agent:abort',
+  AGENT_DONE: 'autodsm:agent:done',
   CHANNEL_FROM_MANAGER: 'autodsm:channel:from-manager',
   CHANNEL_FROM_PREVIEW: 'autodsm:channel:from-preview',
   AGENT_AUTH_STATUS: 'autodsm:agent:auth-status',
@@ -45,6 +48,27 @@ export type StubGeneratedPayload = {
 export type StubErrorPayload = {
   componentId: string;
   message: string;
+};
+
+export type AgentAuthStatusPayload = {
+  kind: 'subscription' | 'api-key' | 'oauth-token' | 'bedrock' | 'vertex' | 'none';
+  readable: string;
+  version?: string;
+};
+
+export type AgentQueryPayload = {
+  prompt: string;
+};
+
+export type AgentTurnPayload =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; name: string; input: unknown }
+  | { type: 'tool_result'; toolUseId?: string; content: unknown }
+  | { type: 'error'; message: string };
+
+export type AgentDonePayload = {
+  code: number | null;
+  signal: NodeJS.Signals | null | undefined;
 };
 
 export type IndexerResultPayload = {

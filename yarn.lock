@@ -480,7 +480,9 @@ __metadata:
   dependencies:
     "@autodsm/shared": "workspace:*"
     "@types/node": "npm:^22.19.1"
+    pathe: "npm:^2.0.0"
     typescript: "npm:^5.9.3"
+    vitest: "npm:^4.1.5"
   languageName: unknown
   linkType: soft
 
