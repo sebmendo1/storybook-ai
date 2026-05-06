@@ -1,5 +1,23 @@
-export type { DiscoveredComponent } from './types.ts';
-export type { TokenSet } from './types.ts';
+export type {
+  DiscoveredComponent,
+  TokenSet,
+  TokenEntry,
+  ComponentStatus,
+  TokenCategory,
+} from './types.ts';
 
-// Scan implementations land in Sprint 3 (M3). Sprint 1 ships the type surface
-// only so consumers compile against a stable shape.
+export { scanRepo, type ScanRepoOptions, type ScanRepoResult } from './components/scan-repo.ts';
+export { findComponentFiles, findStoryFiles } from './components/find-files.ts';
+export {
+  parseComponentFile,
+  type ParsedComponent,
+  type ParsedProp,
+} from './components/parse-component.ts';
+export { linkStoriesToComponents } from './components/match-stories.ts';
+
+export {
+  extractTokens,
+  extractCssVars,
+  extractTailwindTokens,
+  extractThemeObjectTokens,
+} from './tokens/index.ts';

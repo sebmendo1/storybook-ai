@@ -533,6 +533,7 @@ __metadata:
     electron: "npm:^35.0.0"
     pathe: "npm:^2.0.0"
     storybook: "workspace:*"
+    tinyglobby: "npm:^0.2.13"
     tsup: "npm:^8.3.5"
     typescript: "npm:^5.9.3"
   languageName: unknown
@@ -543,8 +544,12 @@ __metadata:
   resolution: "@autodsm/indexer@workspace:code/lib/autodsm-indexer"
   dependencies:
     "@autodsm/shared": "workspace:*"
+    "@types/node": "npm:^22.19.1"
     pathe: "npm:^2.0.0"
+    react-docgen: "npm:^8.0.2"
+    tinyglobby: "npm:^0.2.13"
     typescript: "npm:^5.9.3"
+    vitest: "npm:^4.1.5"
   languageName: unknown
   linkType: soft
 

@@ -2,8 +2,18 @@ import { app, BrowserWindow, WebContentsView, ipcMain, dialog } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'pathe';
 import { detectFramework, detectStorybook, materializeConfig } from '@autodsm/detect';
-import { IPC, type ProjectOpenedPayload, type SupportedFramework } from '@autodsm/shared';
-import { startStorybookHost, stopStorybookHost, type StorybookHostHandle } from './storybook-host.ts';
+import { extractTokens, scanRepo } from '@autodsm/indexer';
+import {
+  IPC,
+  type IndexerResultPayload,
+  type ProjectOpenedPayload,
+  type SupportedFramework,
+} from '@autodsm/shared';
+import {
+  startStorybookHost,
+  stopStorybookHost,
+  type StorybookHostHandle,
+} from './storybook-host.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -95,6 +105,10 @@ const bootRepo = async (repoRoot: string) => {
   };
   mainWindow?.webContents.send(IPC.PROJECT_OPENED, projectPayload);
 
+  // Kick the indexer + preview boot in parallel — both are slow, neither
+  // depends on the other.
+  void runIndexer(repoRoot);
+
   try {
     host = await startStorybookHost({ repoRoot, configDir });
     previewView?.webContents.loadURL(host.address);
@@ -107,6 +121,52 @@ const bootRepo = async (repoRoot: string) => {
     mainWindow?.webContents.send(IPC.PREVIEW_ERROR, {
       message: error.message,
       stack: error.stack,
+    });
+  }
+};
+
+const runIndexer = async (repoRoot: string): Promise<void> => {
+  try {
+    const [scan, tokens] = await Promise.all([scanRepo({ repoRoot }), extractTokens(repoRoot)]);
+    const payload: IndexerResultPayload = {
+      components: scan.components.map((c) => ({
+        id: c.id,
+        name: c.name,
+        exportName: c.exportName,
+        sourcePath: c.sourcePath,
+        storyPaths: c.storyPaths,
+        status: c.status,
+      })),
+      tokens: tokens.entries.map((t) => ({
+        name: t.name,
+        value: t.value,
+        category: t.category,
+        source: t.source,
+        usedBy: t.usedBy,
+      })),
+      stats: {
+        componentFiles: scan.stats.componentFiles,
+        storyFiles: scan.stats.storyFiles,
+        components: scan.stats.components,
+        componentsWithStories: scan.stats.componentsWithStories,
+        tokens: tokens.entries.length,
+      },
+    };
+    mainWindow?.webContents.send(IPC.INDEXER_RESULT, payload);
+  } catch (err) {
+    // Indexer failures shouldn't block preview boot; log and continue.
+    const e = err as Error;
+    mainWindow?.webContents.send(IPC.INDEXER_RESULT, {
+      components: [],
+      tokens: [],
+      stats: {
+        componentFiles: 0,
+        storyFiles: 0,
+        components: 0,
+        componentsWithStories: 0,
+        tokens: 0,
+      },
+      error: e.message,
     });
   }
 };

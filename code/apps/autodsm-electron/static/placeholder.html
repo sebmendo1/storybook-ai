@@ -28,6 +28,7 @@
         display: flex;
         flex-direction: column;
         gap: 12px;
+        overflow-y: auto;
       }
       h1 {
         margin: 0 0 4px;
@@ -35,6 +36,13 @@
         letter-spacing: 0.04em;
         text-transform: uppercase;
         color: #9b8cff;
+      }
+      h2 {
+        margin: 12px 0 4px;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #6e6e78;
       }
       p {
         margin: 4px 0;
@@ -84,6 +92,49 @@
         color: #d0d0d8;
         word-break: break-all;
       }
+      ul.components {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+      }
+      ul.components li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 4px 6px;
+        border-radius: 4px;
+      }
+      ul.components li:hover {
+        background: #16161c;
+      }
+      ul.components .name {
+        color: #d0d0d8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      ul.components .status {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        border: 1px solid #2a2a32;
+        color: #6e6e78;
+        flex-shrink: 0;
+      }
+      ul.components .status.ready {
+        border-color: #3a4a36;
+        color: #b6e0a3;
+      }
+      ul.components .status.missing-story {
+        border-color: #4a4434;
+        color: #e0c994;
+      }
+      .stats {
+        font-size: 11px;
+        color: #6e6e78;
+      }
       .hidden {
         display: none;
       }
@@ -92,10 +143,10 @@
   <body>
     <div class="sidebar">
       <h1>AutoDSM</h1>
-      <p>Sprint 2 — detection & auto-config.</p>
-      <p>Pick a folder containing a Storybook project, or any React/Next repo without one.</p>
+      <p>Sprint 3 — indexer & components panel.</p>
       <button id="open">Open Folder</button>
       <span class="badge" id="status">No project loaded</span>
+
       <dl id="details" class="hidden">
         <dt>Repo</dt>
         <dd id="repo"></dd>
@@ -106,6 +157,13 @@
         <dt>Preview</dt>
         <dd id="preview"></dd>
       </dl>
+
+      <div id="indexer-section" class="hidden">
+        <h2>Components <span class="stats" id="component-stats"></span></h2>
+        <ul class="components" id="component-list"></ul>
+        <h2>Tokens <span class="stats" id="token-stats"></span></h2>
+        <p class="stats" id="token-summary"></p>
+      </div>
     </div>
     <script>
       const open = document.getElementById('open');
@@ -115,6 +173,11 @@
       const elFramework = document.getElementById('framework');
       const elSb = document.getElementById('sb');
       const elPreview = document.getElementById('preview');
+      const indexerSection = document.getElementById('indexer-section');
+      const componentList = document.getElementById('component-list');
+      const componentStats = document.getElementById('component-stats');
+      const tokenStats = document.getElementById('token-stats');
+      const tokenSummary = document.getElementById('token-summary');
 
       const setStatus = (msg, kind) => {
         status.textContent = msg;
@@ -139,14 +202,60 @@
           : 'AutoDSM-managed (.autodsm/storybook/)';
         elPreview.textContent = 'starting…';
         setStatus(`Booting ${payload.framework}…`);
+        indexerSection.classList.remove('hidden');
+        componentList.innerHTML = '<li class="status">scanning…</li>';
+        componentStats.textContent = '';
+        tokenStats.textContent = '';
+        tokenSummary.textContent = '';
       });
+
       window.autodsm.onPreviewStarted((payload) => {
         elPreview.textContent = payload.address;
         setStatus('Preview ready', 'ok');
       });
+
       window.autodsm.onPreviewError((payload) => {
         elPreview.textContent = '—';
         setStatus(`Preview error: ${payload.message}`, 'err');
+      });
+
+      window.autodsm.onIndexerResult((payload) => {
+        componentList.innerHTML = '';
+        const limit = 200;
+        const components = payload.components.slice(0, limit);
+        for (const c of components) {
+          const li = document.createElement('li');
+          const name = document.createElement('span');
+          name.className = 'name';
+          name.title = c.sourcePath;
+          name.textContent = c.name || c.exportName;
+          const badge = document.createElement('span');
+          badge.className = `status ${c.status}`;
+          badge.textContent = c.status === 'ready' ? '●' : '○';
+          badge.title = c.status;
+          li.appendChild(name);
+          li.appendChild(badge);
+          componentList.appendChild(li);
+        }
+        if (payload.components.length > limit) {
+          const more = document.createElement('li');
+          more.className = 'stats';
+          more.textContent = `+${payload.components.length - limit} more`;
+          componentList.appendChild(more);
+        }
+
+        const s = payload.stats;
+        componentStats.textContent = `${s.components} (${s.componentsWithStories} ready)`;
+        tokenStats.textContent = `${s.tokens}`;
+
+        const byCategory = {};
+        for (const t of payload.tokens) {
+          byCategory[t.category] = (byCategory[t.category] ?? 0) + 1;
+        }
+        tokenSummary.textContent =
+          Object.entries(byCategory)
+            .map(([k, v]) => `${k}:${v}`)
+            .join(' · ') || 'none detected';
       });
     </script>
   </body>

@@ -4,6 +4,8 @@ export const IPC = {
   PREVIEW_STARTED: 'autodsm:preview-started',
   PREVIEW_STOPPED: 'autodsm:preview-stopped',
   PREVIEW_ERROR: 'autodsm:preview-error',
+  INDEXER_RESULT: 'autodsm:indexer:result',
+  INDEXER_REQUEST: 'autodsm:indexer:request',
   CHANNEL_FROM_MANAGER: 'autodsm:channel:from-manager',
   CHANNEL_FROM_PREVIEW: 'autodsm:channel:from-preview',
   AGENT_AUTH_STATUS: 'autodsm:agent:auth-status',
@@ -26,4 +28,44 @@ export type PreviewStartedPayload = {
 export type PreviewErrorPayload = {
   message: string;
   stack?: string;
+};
+
+export type IndexerResultPayload = {
+  components: Array<{
+    id: string;
+    name: string;
+    exportName: string;
+    sourcePath: string;
+    storyPaths: string[];
+    status:
+      | 'ready'
+      | 'missing-story'
+      | 'render-broken'
+      | 'missing-provider'
+      | 'missing-dependency'
+      | 'token-warning'
+      | 'needs-review';
+  }>;
+  tokens: Array<{
+    name: string;
+    value: string;
+    category:
+      | 'color'
+      | 'typography'
+      | 'spacing'
+      | 'radius'
+      | 'shadow'
+      | 'motion'
+      | 'breakpoint'
+      | 'semantic';
+    source: 'css-vars' | 'tailwind' | 'theme-object';
+    usedBy: string[];
+  }>;
+  stats: {
+    componentFiles: number;
+    storyFiles: number;
+    components: number;
+    componentsWithStories: number;
+    tokens: number;
+  };
 };
