@@ -109,6 +109,24 @@
       ul.components li:hover {
         background: #16161c;
       }
+      ul.components button.generate {
+        margin: 0;
+        padding: 1px 6px;
+        font-size: 10px;
+        background: transparent;
+        color: #c0b3ff;
+        border: 1px solid #2e2456;
+        border-radius: 3px;
+      }
+      ul.components button.generate:hover {
+        background: #1a1a28;
+        border-color: #9b8cff;
+      }
+      ul.components button.generate:disabled {
+        color: #555;
+        border-color: #2a2a32;
+        cursor: progress;
+      }
       ul.components .name {
         color: #d0d0d8;
         white-space: nowrap;
@@ -225,16 +243,43 @@
         const components = payload.components.slice(0, limit);
         for (const c of components) {
           const li = document.createElement('li');
+          li.dataset.componentId = c.id;
           const name = document.createElement('span');
           name.className = 'name';
           name.title = c.sourcePath;
           name.textContent = c.name || c.exportName;
+          const right = document.createElement('span');
+          right.style.display = 'flex';
+          right.style.gap = '6px';
+          right.style.alignItems = 'center';
+          right.style.flexShrink = '0';
+
+          if (c.status === 'missing-story') {
+            const gen = document.createElement('button');
+            gen.className = 'generate';
+            gen.textContent = 'Generate';
+            gen.addEventListener('click', async () => {
+              gen.disabled = true;
+              gen.textContent = '…';
+              try {
+                await window.autodsm.generateStub(c.id);
+              } catch (err) {
+                gen.disabled = false;
+                gen.textContent = 'Generate';
+                console.error(err);
+              }
+            });
+            right.appendChild(gen);
+          }
+
           const badge = document.createElement('span');
           badge.className = `status ${c.status}`;
           badge.textContent = c.status === 'ready' ? '●' : '○';
           badge.title = c.status;
+          right.appendChild(badge);
+
           li.appendChild(name);
-          li.appendChild(badge);
+          li.appendChild(right);
           componentList.appendChild(li);
         }
         if (payload.components.length > limit) {
@@ -256,6 +301,13 @@
           Object.entries(byCategory)
             .map(([k, v]) => `${k}:${v}`)
             .join(' · ') || 'none detected';
+      });
+
+      window.autodsm.onStubGenerated((payload) => {
+        setStatus(`Generated ${payload.stagedPath.split('/').slice(-2).join('/')}`, 'ok');
+      });
+      window.autodsm.onStubError((payload) => {
+        setStatus(`Stub error: ${payload.message}`, 'err');
       });
     </script>
   </body>

@@ -6,6 +6,9 @@ export const IPC = {
   PREVIEW_ERROR: 'autodsm:preview-error',
   INDEXER_RESULT: 'autodsm:indexer:result',
   INDEXER_REQUEST: 'autodsm:indexer:request',
+  GENERATE_STUB: 'autodsm:generate-stub',
+  STUB_GENERATED: 'autodsm:stub-generated',
+  STUB_ERROR: 'autodsm:stub-error',
   CHANNEL_FROM_MANAGER: 'autodsm:channel:from-manager',
   CHANNEL_FROM_PREVIEW: 'autodsm:channel:from-preview',
   AGENT_AUTH_STATUS: 'autodsm:agent:auth-status',
@@ -28,6 +31,20 @@ export type PreviewStartedPayload = {
 export type PreviewErrorPayload = {
   message: string;
   stack?: string;
+};
+
+export type GenerateStubRequestPayload = {
+  componentId: string;
+};
+
+export type StubGeneratedPayload = {
+  componentId: string;
+  stagedPath: string;
+};
+
+export type StubErrorPayload = {
+  componentId: string;
+  message: string;
 };
 
 export type IndexerResultPayload = {

@@ -2,11 +2,15 @@ import { app, BrowserWindow, WebContentsView, ipcMain, dialog } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'pathe';
 import { detectFramework, detectStorybook, materializeConfig } from '@autodsm/detect';
-import { extractTokens, scanRepo } from '@autodsm/indexer';
+import { extractTokens, scanRepo, type DiscoveredComponent } from '@autodsm/indexer';
+import { generateStub } from '@autodsm/csf-writer';
 import {
   IPC,
+  type GenerateStubRequestPayload,
   type IndexerResultPayload,
   type ProjectOpenedPayload,
+  type StubErrorPayload,
+  type StubGeneratedPayload,
   type SupportedFramework,
 } from '@autodsm/shared';
 import {
@@ -20,6 +24,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
 let previewView: WebContentsView | null = null;
 let host: StorybookHostHandle | null = null;
+let activeRepoRoot: string | null = null;
+let activeFramework: SupportedFramework | 'unknown' = 'unknown';
+let lastComponents: DiscoveredComponent[] = [];
 
 const SIDEBAR_WIDTH = 320;
 
@@ -82,8 +89,10 @@ const bootRepo = async (repoRoot: string) => {
     await stopStorybookHost(host);
     host = null;
   }
+  activeRepoRoot = repoRoot;
 
   const framework = await detectFramework(repoRoot);
+  activeFramework = framework;
   const detection = detectStorybook(repoRoot);
 
   let configDir = detection.configDir;
@@ -128,6 +137,7 @@ const bootRepo = async (repoRoot: string) => {
 const runIndexer = async (repoRoot: string): Promise<void> => {
   try {
     const [scan, tokens] = await Promise.all([scanRepo({ repoRoot }), extractTokens(repoRoot)]);
+    lastComponents = scan.components;
     const payload: IndexerResultPayload = {
       components: scan.components.map((c) => ({
         id: c.id,
@@ -172,6 +182,41 @@ const runIndexer = async (repoRoot: string): Promise<void> => {
 };
 
 ipcMain.handle(IPC.OPEN_FOLDER, openFolderAndBoot);
+
+ipcMain.handle(IPC.GENERATE_STUB, async (_event, raw: GenerateStubRequestPayload) => {
+  if (!activeRepoRoot) return;
+  const component = lastComponents.find((c) => c.id === raw.componentId);
+  if (!component) {
+    const err: StubErrorPayload = {
+      componentId: raw.componentId,
+      message: 'Component not found in last indexer run.',
+    };
+    mainWindow?.webContents.send(IPC.STUB_ERROR, err);
+    return;
+  }
+
+  try {
+    const framework: 'react' | 'next' = activeFramework.startsWith('next') ? 'next' : 'react';
+    const result = await generateStub({ repoRoot: activeRepoRoot, component, framework });
+    const ok: StubGeneratedPayload = {
+      componentId: raw.componentId,
+      stagedPath: result.stagedPath,
+    };
+    mainWindow?.webContents.send(IPC.STUB_GENERATED, ok);
+
+    // Re-run the indexer so the renderer's component list reflects the new
+    // story coverage. Storybook's own dev server picks up the file via its
+    // glob watcher so the preview will refresh on its own.
+    void runIndexer(activeRepoRoot);
+  } catch (err) {
+    const e = err as Error;
+    const errPayload: StubErrorPayload = {
+      componentId: raw.componentId,
+      message: e.message,
+    };
+    mainWindow?.webContents.send(IPC.STUB_ERROR, errPayload);
+  }
+});
 
 app.whenReady().then(createWindow);
 

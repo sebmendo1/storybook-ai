@@ -23,6 +23,17 @@ const api = {
     ipcRenderer.on(IPC.INDEXER_RESULT, listener);
     return () => ipcRenderer.removeListener(IPC.INDEXER_RESULT, listener);
   },
+  generateStub: (componentId: string) => ipcRenderer.invoke(IPC.GENERATE_STUB, { componentId }),
+  onStubGenerated: (cb: (payload: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => cb(payload);
+    ipcRenderer.on(IPC.STUB_GENERATED, listener);
+    return () => ipcRenderer.removeListener(IPC.STUB_GENERATED, listener);
+  },
+  onStubError: (cb: (payload: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => cb(payload);
+    ipcRenderer.on(IPC.STUB_ERROR, listener);
+    return () => ipcRenderer.removeListener(IPC.STUB_ERROR, listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('autodsm', api);
