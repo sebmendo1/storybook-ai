@@ -31,3 +31,23 @@ export {
   listSessions,
   type SessionLogEntry,
 } from './sessions.ts';
+
+export {
+  defaultTools,
+  allowedToolsSpec,
+  readComponentTool,
+  readStoryTool,
+  listGeneratedStoriesTool,
+  installDepTool,
+  type ToolDescriptor,
+  type ToolExecutor,
+  type ToolContext,
+  type JsonSchema,
+} from './tools/index.ts';
+
+export {
+  listStagedChanges,
+  readStagedChange,
+  rejectStagedChange,
+  type StagedChange,
+} from './changeset.ts';

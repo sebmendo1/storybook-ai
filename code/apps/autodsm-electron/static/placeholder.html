@@ -210,15 +210,83 @@
         outline: none;
         border-color: #9b8cff;
       }
+      .health-bar {
+        background: #1c1c22;
+        border-radius: 4px;
+        height: 6px;
+        overflow: hidden;
+        border: 1px solid #2a2a32;
+      }
+      .health-fill {
+        background: linear-gradient(90deg, #6e6e78 0%, #9b8cff 100%);
+        height: 100%;
+        width: 0%;
+        transition: width 200ms ease;
+      }
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal {
+        background: #1a1a22;
+        border: 1px solid #2a2a32;
+        border-radius: 8px;
+        max-width: 420px;
+        padding: 20px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      }
+      .modal h2 {
+        margin-top: 0;
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 14px;
+        color: #c0b3ff;
+      }
+      .modal p {
+        font-size: 12px;
+        color: #d0d0d8;
+      }
+      .modal code {
+        background: #0f0f12;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 11px;
+      }
       .hidden {
         display: none;
       }
     </style>
   </head>
   <body>
+    <div id="onboarding-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <h2>AutoDSM uses your Claude Code plan</h2>
+        <p>
+          Agentic features (story generation, repair, …) bill against your existing
+          <strong>Claude Pro / Max / Team</strong> subscription via subprocess delegation to the
+          local <code>claude</code> CLI.
+        </p>
+        <p>
+          To enable: install Claude Code from
+          <code>claude.com/code</code> and run <code>claude login</code>. AutoDSM never reads your
+          OAuth tokens directly &mdash; it only spawns the CLI you've already authenticated.
+        </p>
+        <p style="color: #6e6e78">
+          You can also use <code>ANTHROPIC_API_KEY</code> or
+          <code>CLAUDE_CODE_OAUTH_TOKEN</code> env vars; those bill the Anthropic Console rather
+          than your Claude Code plan.
+        </p>
+        <button id="onboarding-dismiss">Got it</button>
+      </div>
+    </div>
     <div class="sidebar">
       <h1>AutoDSM</h1>
-      <p>Sprint 6 — IPC + auth + agent runtime.</p>
+      <p>Sprint 7 — repair tools + changeset + onboarding.</p>
       <button id="open">Open Folder</button>
       <span class="badge" id="status">No project loaded</span>
       <span class="badge" id="auth-badge">Auth: probing…</span>
@@ -235,10 +303,16 @@
       </dl>
 
       <div id="indexer-section" class="hidden">
+        <h2>Health <span class="stats" id="health-stats"></span></h2>
+        <div class="health-bar" id="health-bar">
+          <div class="health-fill" id="health-fill"></div>
+        </div>
         <h2>Components <span class="stats" id="component-stats"></span></h2>
         <ul class="components" id="component-list"></ul>
         <h2>Tokens <span class="stats" id="token-stats"></span></h2>
         <p class="stats" id="token-summary"></p>
+        <h2>Changes <span class="stats" id="changes-stats"></span></h2>
+        <ul class="components" id="changes-list"></ul>
       </div>
 
       <div class="agent" id="agent-section">
@@ -264,6 +338,19 @@
       const agentTranscript = document.getElementById('agent-transcript');
       const agentInput = document.getElementById('agent-input');
       const agentStatus = document.getElementById('agent-status');
+      const healthStats = document.getElementById('health-stats');
+      const healthFill = document.getElementById('health-fill');
+      const changesList = document.getElementById('changes-list');
+      const changesStats = document.getElementById('changes-stats');
+      const onboardingModal = document.getElementById('onboarding-modal');
+      const onboardingDismiss = document.getElementById('onboarding-dismiss');
+
+      onboardingDismiss.addEventListener('click', () => {
+        onboardingModal.classList.add('hidden');
+        try {
+          localStorage.setItem('autodsm-onboarded', '1');
+        } catch {}
+      });
 
       const setStatus = (msg, kind) => {
         status.textContent = msg;
@@ -281,6 +368,50 @@
               : 'purple'
         }`;
         agentInput.disabled = !ok;
+
+        const onboarded = (() => {
+          try {
+            return localStorage.getItem('autodsm-onboarded') === '1';
+          } catch {
+            return false;
+          }
+        })();
+        if (auth.kind === 'none' && !onboarded) {
+          onboardingModal.classList.remove('hidden');
+        }
+      };
+
+      const refreshChanges = async () => {
+        try {
+          const result = await window.autodsm.listChanges();
+          changesList.innerHTML = '';
+          changesStats.textContent = `${result.changes.length} staged`;
+          for (const change of result.changes) {
+            const li = document.createElement('li');
+            const name = document.createElement('span');
+            name.className = 'name';
+            name.title = change.stagedPath;
+            name.textContent = change.relativePath;
+            const right = document.createElement('span');
+            right.style.display = 'flex';
+            right.style.gap = '4px';
+            right.style.flexShrink = '0';
+            const reject = document.createElement('button');
+            reject.className = 'generate';
+            reject.textContent = 'Reject';
+            reject.addEventListener('click', async () => {
+              await window.autodsm.rejectChange(change.stagedPath);
+              await refreshChanges();
+            });
+            right.appendChild(reject);
+            li.appendChild(name);
+            li.appendChild(right);
+            changesList.appendChild(li);
+          }
+        } catch (err) {
+          changesStats.textContent = 'error';
+          console.error(err);
+        }
       };
 
       const appendTurn = (kind, text) => {
@@ -381,6 +512,13 @@
         componentStats.textContent = `${s.components} (${s.componentsWithStories} ready)`;
         tokenStats.textContent = `${s.tokens}`;
 
+        const coverage = s.components > 0 ? s.componentsWithStories / s.components : 0;
+        const pct = Math.round(coverage * 100);
+        healthStats.textContent = `${pct}% story coverage`;
+        healthFill.style.width = `${pct}%`;
+
+        void refreshChanges();
+
         const byCategory = {};
         for (const t of payload.tokens) {
           byCategory[t.category] = (byCategory[t.category] ?? 0) + 1;
@@ -393,6 +531,7 @@
 
       window.autodsm.onStubGenerated((payload) => {
         setStatus(`Generated ${payload.stagedPath.split('/').slice(-2).join('/')}`, 'ok');
+        void refreshChanges();
       });
       window.autodsm.onStubError((payload) => {
         setStatus(`Stub error: ${payload.message}`, 'err');

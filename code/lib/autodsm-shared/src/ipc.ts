@@ -12,6 +12,10 @@ export const IPC = {
   AGENT_QUERY: 'autodsm:agent:query',
   AGENT_ABORT: 'autodsm:agent:abort',
   AGENT_DONE: 'autodsm:agent:done',
+  CHANGES_LIST: 'autodsm:changes:list',
+  CHANGES_PROMOTE: 'autodsm:changes:promote',
+  CHANGES_REJECT: 'autodsm:changes:reject',
+  CHANGES_DIFF: 'autodsm:changes:diff',
   CHANNEL_FROM_MANAGER: 'autodsm:channel:from-manager',
   CHANNEL_FROM_PREVIEW: 'autodsm:channel:from-preview',
   AGENT_AUTH_STATUS: 'autodsm:agent:auth-status',
@@ -69,6 +73,38 @@ export type AgentTurnPayload =
 export type AgentDonePayload = {
   code: number | null;
   signal: NodeJS.Signals | null | undefined;
+};
+
+export type StagedChangeSummary = {
+  stagedPath: string;
+  relativePath: string;
+  byteSize: number;
+  mtimeMs: number;
+};
+
+export type ChangesListPayload = {
+  changes: StagedChangeSummary[];
+};
+
+export type ChangesPromoteRequest = {
+  stagedPath: string;
+  componentSourcePath: string;
+};
+
+export type ChangesPromoteResult = {
+  finalPath: string;
+};
+
+export type ChangesRejectRequest = {
+  stagedPath: string;
+};
+
+export type ChangesDiffRequest = {
+  stagedPath: string;
+};
+
+export type ChangesDiffResult = {
+  source: string;
 };
 
 export type IndexerResultPayload = {
