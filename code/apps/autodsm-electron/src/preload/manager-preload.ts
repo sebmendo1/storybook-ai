@@ -47,6 +47,11 @@ const api = {
     ipcRenderer.on(IPC.STUB_ERROR, listener);
     return () => ipcRenderer.removeListener(IPC.STUB_ERROR, listener);
   },
+  listChanges: () => ipcRenderer.invoke(IPC.CHANGES_LIST),
+  diffChange: (stagedPath: string) => ipcRenderer.invoke(IPC.CHANGES_DIFF, { stagedPath }),
+  rejectChange: (stagedPath: string) => ipcRenderer.invoke(IPC.CHANGES_REJECT, { stagedPath }),
+  promoteChange: (stagedPath: string, componentSourcePath: string) =>
+    ipcRenderer.invoke(IPC.CHANGES_PROMOTE, { stagedPath, componentSourcePath }),
 };
 
 contextBridge.exposeInMainWorld('autodsm', api);

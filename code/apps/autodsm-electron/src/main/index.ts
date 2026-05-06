@@ -7,16 +7,26 @@ import { generateStub } from '@autodsm/csf-writer';
 import {
   appendEntry,
   detectAuth,
+  listStagedChanges,
   newSessionId,
+  readStagedChange,
+  rejectStagedChange,
   spawnClaude,
   type ClaudeSubprocessHandle,
 } from '@autodsm/agent';
+import { promoteStagedStory } from '@autodsm/csf-writer';
 import {
   IPC,
   type AgentAuthStatusPayload,
   type AgentDonePayload,
   type AgentQueryPayload,
   type AgentTurnPayload,
+  type ChangesDiffRequest,
+  type ChangesDiffResult,
+  type ChangesListPayload,
+  type ChangesPromoteRequest,
+  type ChangesPromoteResult,
+  type ChangesRejectRequest,
   type GenerateStubRequestPayload,
   type IndexerResultPayload,
   type ProjectOpenedPayload,
@@ -277,6 +287,44 @@ ipcMain.handle(IPC.AGENT_ABORT, async () => {
     activeAgent = null;
   }
 });
+
+ipcMain.handle(IPC.CHANGES_LIST, async (): Promise<ChangesListPayload> => {
+  if (!activeRepoRoot) return { changes: [] };
+  const changes = await listStagedChanges(activeRepoRoot);
+  return {
+    changes: changes.map((c) => ({
+      stagedPath: c.stagedPath,
+      relativePath: c.relativePath,
+      byteSize: c.byteSize,
+      mtimeMs: c.mtimeMs,
+    })),
+  };
+});
+
+ipcMain.handle(
+  IPC.CHANGES_DIFF,
+  async (_event, raw: ChangesDiffRequest): Promise<ChangesDiffResult> => {
+    const source = await readStagedChange(raw.stagedPath);
+    return { source };
+  }
+);
+
+ipcMain.handle(IPC.CHANGES_REJECT, async (_event, raw: ChangesRejectRequest) => {
+  await rejectStagedChange(raw.stagedPath);
+  if (activeRepoRoot) void runIndexer(activeRepoRoot);
+});
+
+ipcMain.handle(
+  IPC.CHANGES_PROMOTE,
+  async (_event, raw: ChangesPromoteRequest): Promise<ChangesPromoteResult> => {
+    const result = await promoteStagedStory({
+      stagedPath: raw.stagedPath,
+      componentSourcePath: raw.componentSourcePath,
+    });
+    if (activeRepoRoot) void runIndexer(activeRepoRoot);
+    return { finalPath: result.finalPath };
+  }
+);
 
 ipcMain.handle(IPC.GENERATE_STUB, async (_event, raw: GenerateStubRequestPayload) => {
   if (!activeRepoRoot) return;
